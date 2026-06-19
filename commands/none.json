@@ -1,0 +1,10 @@
+{
+  "name": "none",
+  "description": "Use this when the instruction does not match any other command, is unclear, or is not a CAD manipulation. Put a short explanation in \"reason\". TR: anlasilmayan veya desteklenmeyen istekler icin.",
+  "examples": [
+    "bugun hava nasil -> {\"command\":\"none\",\"params\":{\"reason\":\"not a CAD command\"}}"
+  ],
+  "params": [
+    { "name": "reason", "type": "string", "note": "short reason why no command applies", "required": true }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "name": "mirror",
+  "description": "Mirror / reflect the active object across a plane. plane is one of \"xy\", \"yz\", \"xz\". TR: 'aynala/yansit/simetrigini al' = mirror, 'xy/yz/xz duzlemi' = plane. EN: 'mirror/reflect across the .. plane'.",
+  "examples": [
+    "objeyi yz duzleminde aynala -> {\"command\":\"mirror\",\"params\":{\"plane\":\"yz\"}}",
+    "mirror the object across the xy plane -> {\"command\":\"mirror\",\"params\":{\"plane\":\"xy\"}}"
+  ],
+  "params": [
+    { "name": "plane", "type": "string", "note": "mirror plane: xy, yz or xz", "required": true, "enum": ["xy", "yz", "xz"] }
+  ]
+}

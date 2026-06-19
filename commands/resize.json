@@ -1,0 +1,14 @@
+{
+  "name": "resize",
+  "description": "Scale / resize the active object. x, y, z are MULTIPLIERS (1.0 = unchanged, 1.05 = +5%, 0.95 = -5%, 0.5 = half, 2.0 = double). TR: 'buyut/buyult' = enlarge, 'kucult' = shrink, 'yuzde N buyult' -> 1 + N/100, 'yuzde N kucult' -> 1 - N/100, 'N kat/katina' -> N. EN: 'scale up/down by N percent', 'N times'. Map width/genislik -> x, depth/derinlik -> y, height/yukseklik -> z; if no axis is named, apply the same multiplier to x, y and z.",
+  "examples": [
+    "objeyi yuzde 5 buyult -> {\"command\":\"resize\",\"params\":{\"x\":1.05,\"y\":1.05,\"z\":1.05}}",
+    "scale the object down by 10% -> {\"command\":\"resize\",\"params\":{\"x\":0.9,\"y\":0.9,\"z\":0.9}}",
+    "genisligi yariya indir -> {\"command\":\"resize\",\"params\":{\"x\":0.5,\"y\":1.0,\"z\":1.0}}"
+  ],
+  "params": [
+    { "name": "x", "type": "number", "note": "X-axis scale multiplier (> 0), default 1.0", "required": true, "min": 0.0, "exclusiveMin": true, "max": 1000.0 },
+    { "name": "y", "type": "number", "note": "Y-axis scale multiplier (> 0), default 1.0", "required": true, "min": 0.0, "exclusiveMin": true, "max": 1000.0 },
+    { "name": "z", "type": "number", "note": "Z-axis scale multiplier (> 0), default 1.0", "required": true, "min": 0.0, "exclusiveMin": true, "max": 1000.0 }
+  ]
+}

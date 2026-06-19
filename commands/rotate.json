@@ -1,0 +1,13 @@
+{
+  "name": "rotate",
+  "description": "Rotate the active object around an axis. axis is one of \"x\", \"y\", \"z\". angle_deg is the rotation in DEGREES, range -360..360 (positive = counter-clockwise, negative = clockwise). TR: 'dondur/cevir' = rotate, 'derece' = degrees, '... ekseninde/etrafinda' = around that axis, 'geri/saat yonunde' -> negative. EN: 'rotate/turn', 'degrees', 'around the .. axis'. If no axis is named, default to \"z\".",
+  "examples": [
+    "z ekseninde 90 derece dondur -> {\"command\":\"rotate\",\"params\":{\"axis\":\"z\",\"angle_deg\":90}}",
+    "rotate 45 degrees around the x axis -> {\"command\":\"rotate\",\"params\":{\"axis\":\"x\",\"angle_deg\":45}}",
+    "objeyi 30 derece saat yonunde dondur -> {\"command\":\"rotate\",\"params\":{\"axis\":\"z\",\"angle_deg\":-30}}"
+  ],
+  "params": [
+    { "name": "axis", "type": "string", "note": "rotation axis: x, y or z (default z)", "required": true, "enum": ["x", "y", "z"] },
+    { "name": "angle_deg", "type": "number", "note": "rotation angle in degrees, -360..360", "required": true, "min": -360.0, "max": 360.0 }
+  ]
+}

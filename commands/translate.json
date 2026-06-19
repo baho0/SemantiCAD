@@ -1,0 +1,14 @@
+{
+  "name": "translate",
+  "description": "Move / translate the active object by a delta in MILLIMETRES. dx, dy, dz are signed distances (0 = no movement on that axis). TR: 'sag' -> +dx, 'sol' -> -dx, 'ileri/on' -> +dy, 'geri/arka' -> -dy, 'yukari' -> +dz, 'asagi' -> -dz, 'kaydir/tasi/hareket ettir' = move. EN: right -> +dx, left -> -dx, forward -> +dy, back -> -dy, up -> +dz, down -> -dz, 'move/shift'.",
+  "examples": [
+    "10 mm saga kaydir -> {\"command\":\"translate\",\"params\":{\"dx\":10,\"dy\":0,\"dz\":0}}",
+    "move the object up 5 mm -> {\"command\":\"translate\",\"params\":{\"dx\":0,\"dy\":0,\"dz\":5}}",
+    "20 mm geri tasi -> {\"command\":\"translate\",\"params\":{\"dx\":0,\"dy\":-20,\"dz\":0}}"
+  ],
+  "params": [
+    { "name": "dx", "type": "number", "note": "X delta in mm (+right / -left), default 0", "required": true, "min": -100000.0, "max": 100000.0 },
+    { "name": "dy", "type": "number", "note": "Y delta in mm (+forward / -back), default 0", "required": true, "min": -100000.0, "max": 100000.0 },
+    { "name": "dz", "type": "number", "note": "Z delta in mm (+up / -down), default 0", "required": true, "min": -100000.0, "max": 100000.0 }
+  ]
+}
