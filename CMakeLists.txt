@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(SEMANTICAD_USE_CUDA "Enable CUDA support via ggml" ON)
+option(SEMANTICAD_USE_VTK  "Enable the VTK visualization layer" ON)
 
 if(SEMANTICAD_USE_CUDA)
     message(STATUS "--- SemantiCAD: CUDA donanim hizlandirmasi aktif ediliyor ---")
@@ -19,6 +20,20 @@ set(LLAMA_BUILD_COMMON ON CACHE BOOL "Build llama.cpp common utils" FORCE)
 
 add_subdirectory(external/llama.cpp)
 
+if(SEMANTICAD_USE_VTK)
+    find_package(VTK 9 REQUIRED COMPONENTS
+        CommonCore
+        CommonDataModel
+        FiltersSources
+        IOGeometry
+        IOPLY
+        IOXML
+        RenderingCore
+        RenderingOpenGL2
+        InteractionStyle)
+    message(STATUS "--- SemantiCAD: VTK ${VTK_VERSION} bulundu ---")
+endif()
+
 add_executable(semanticad
     src/main.cpp
     src/core/NLP/NLPManager.cpp
@@ -30,8 +45,8 @@ add_executable(semanticad
     src/core/NLP/scheme/DynamicCommandSchema.cpp
 )
 
-# `src`           -> DebugLog.h and "core/NLP/..." includes from main.cpp
-# `src/core/NLP`  -> intra-module includes ("scheme/...", "process/...", etc.)
+# `src`           -> "core/...", "infrastructure/..." includes (eventbus, vtk, DebugLog)
+# `src/core/NLP`  -> intra-NLP includes ("scheme/...", "process/...", etc.)
 target_include_directories(semanticad PRIVATE
     src
     src/core/NLP
@@ -44,3 +59,16 @@ target_link_libraries(semanticad PRIVATE llama ggml llama-common)
 target_compile_definitions(semanticad PRIVATE
     $<$<CONFIG:Debug>:ENABLE_DEBUG_LOG>
 )
+
+# --- VTK visualization layer (optional) -----------------------------------
+if(SEMANTICAD_USE_VTK)
+    target_sources(semanticad PRIVATE
+        src/infrastructure/MeshLoader.cpp
+        src/core/vtk/VtkViewer.cpp
+    )
+    target_link_libraries(semanticad PRIVATE ${VTK_LIBRARIES})
+    target_compile_definitions(semanticad PRIVATE SEMANTICAD_HAS_VTK)
+    # Required so VTK's object factories (OpenGL2 render window, interactor
+    # styles, ...) self-register at startup.
+    vtk_module_autoinit(TARGETS semanticad MODULES ${VTK_LIBRARIES})
+endif()
