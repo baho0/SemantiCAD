@@ -6,6 +6,7 @@
 // shared types are the EventBus and CommandEvent (in core), keeping the layers
 // decoupled.
 
+#include "core/command/CommandDispatcher.h"
 #include "core/eventbus/Events.h"
 
 #include <vtkSmartPointer.h>
@@ -13,7 +14,6 @@
 class vtkPolyData;
 class vtkPolyDataMapper;
 class vtkActor;
-class vtkTransform;
 class vtkRenderer;
 class vtkRenderWindow;
 class vtkRenderWindowInteractor;
@@ -49,10 +49,13 @@ private:
     vtkSmartPointer<vtkPolyData> data_;
     vtkSmartPointer<vtkPolyDataMapper> mapper_;
     vtkSmartPointer<vtkActor> actor_;
-    vtkSmartPointer<vtkTransform> transform_;
     vtkSmartPointer<vtkRenderer> renderer_;
     vtkSmartPointer<vtkRenderWindow> window_;
     vtkSmartPointer<vtkRenderWindowInteractor> interactor_;
+
+    // Routes CommandEvents to the matching command. Pre-populated with the
+    // built-in commands (resize, translate, rotate, mirror).
+    core::command::CommandDispatcher dispatcher_;
 };
 
 }  // namespace semanticad::viz

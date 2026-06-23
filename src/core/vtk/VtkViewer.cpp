@@ -1,5 +1,6 @@
 #include "core/vtk/VtkViewer.h"
 
+#include "core/command/entity/CadObject.h"
 #include "core/eventbus/EventBus.h"
 
 #include <vtkActor.h>
@@ -12,7 +13,6 @@
 #include <vtkRenderWindow.h>
 #include <vtkRenderWindowInteractor.h>
 #include <vtkRenderer.h>
-#include <vtkTransform.h>
 
 #include <iostream>
 
@@ -39,13 +39,10 @@ void VtkViewer::loadPolyData(vtkSmartPointer<vtkPolyData> data) {
     mapper_ = vtkSmartPointer<vtkPolyDataMapper>::New();
     mapper_->SetInputData(data_);
 
-    transform_ = vtkSmartPointer<vtkTransform>::New();
-    transform_->PostMultiply();  // each command composes in world space
-    transform_->Identity();
-
+    // Commands bake their transforms directly into the polydata (via CadObject),
+    // so the actor needs no cumulative user transform — it just draws data_.
     actor_ = vtkSmartPointer<vtkActor>::New();
     actor_->SetMapper(mapper_);
-    actor_->SetUserTransform(transform_);
 
     renderer_ = vtkSmartPointer<vtkRenderer>::New();
     renderer_->AddActor(actor_);
@@ -53,27 +50,16 @@ void VtkViewer::loadPolyData(vtkSmartPointer<vtkPolyData> data) {
 }
 
 void VtkViewer::onCommand(const core::CommandEvent& event) {
-    if (!transform_) return;
-    const auto& p = event.params;
+    if (!data_) return;
 
-    if (event.command == "resize") {
-        transform_->Scale(p.value("x", 1.0), p.value("y", 1.0), p.value("z", 1.0));
-    } else if (event.command == "translate") {
-        transform_->Translate(p.value("dx", 0.0), p.value("dy", 0.0), p.value("dz", 0.0));
-    } else if (event.command == "rotate") {
-        const std::string axis = p.value("axis", std::string("z"));
-        const double angle = p.value("angle_deg", 0.0);
-        if (axis == "x") transform_->RotateX(angle);
-        else if (axis == "y") transform_->RotateY(angle);
-        else transform_->RotateZ(angle);
-    } else if (event.command == "mirror") {
-        const std::string plane = p.value("plane", std::string("xy"));
-        if (plane == "yz") transform_->Scale(-1.0, 1.0, 1.0);
-        else if (plane == "xz") transform_->Scale(1.0, -1.0, 1.0);
-        else transform_->Scale(1.0, 1.0, -1.0);  // xy
-    } else {
-        return;  // "none" / "error" / unknown -> nothing to visualise
-    }
+    // Wrap the loaded geometry as the CadObject entity and hand it, with the
+    // command, to the dispatcher. The matching command bakes its transform into
+    // the object's points. The viewer no longer knows what any command does —
+    // only how to draw the result. "none" / "error" / unknown names and invalid
+    // params come back as a failure and visualise nothing.
+    core::command::CadObject object(data_);
+    const auto result = dispatcher_.dispatch(event.command, event.params, object);
+    if (!result.ok) return;
 
     if (actor_) actor_->Modified();
     if (window_) window_->Render();
