@@ -36,17 +36,32 @@ void VtkViewer::loadDefaultCube() {
 void VtkViewer::loadPolyData(vtkSmartPointer<vtkPolyData> data) {
     data_ = data;
 
-    mapper_ = vtkSmartPointer<vtkPolyDataMapper>::New();
+    // Build the scene pipeline once and reuse it on subsequent loads. Recreating
+    // the renderer would orphan the one already attached to an embedded (Qt)
+    // render window, so a freshly opened file would not appear. Instead we swap
+    // the mapper's input and keep the same renderer/actor wired to the window.
+    if (!mapper_) mapper_ = vtkSmartPointer<vtkPolyDataMapper>::New();
     mapper_->SetInputData(data_);
 
     // Commands bake their transforms directly into the polydata (via CadObject),
     // so the actor needs no cumulative user transform — it just draws data_.
-    actor_ = vtkSmartPointer<vtkActor>::New();
-    actor_->SetMapper(mapper_);
+    if (!actor_) {
+        actor_ = vtkSmartPointer<vtkActor>::New();
+        actor_->SetMapper(mapper_);
+    }
 
-    renderer_ = vtkSmartPointer<vtkRenderer>::New();
-    renderer_->AddActor(actor_);
-    renderer_->SetBackground(0.10, 0.10, 0.12);
+    if (!renderer_) {
+        renderer_ = vtkSmartPointer<vtkRenderer>::New();
+        renderer_->SetBackground(0.10, 0.10, 0.12);
+    }
+    renderer_->AddActor(actor_);  // no-op if the actor is already present
+
+    // When attached to a window (CLI start() or an embedded Qt widget), frame
+    // the new object and show it immediately.
+    if (window_) {
+        renderer_->ResetCamera();
+        window_->Render();
+    }
 }
 
 void VtkViewer::onCommand(const core::CommandEvent& event) {
@@ -72,6 +87,24 @@ void VtkViewer::getBounds(double out[6]) const {
     } else {
         for (int i = 0; i < 6; ++i) out[i] = 0.0;
     }
+}
+
+void VtkViewer::setRenderWindow(vtkRenderWindow* window) {
+    window_ = window;  // shared with the host widget; both keep it alive
+    if (window_ && renderer_) {
+        window_->AddRenderer(renderer_);
+        renderer_->ResetCamera();
+        window_->Render();
+    }
+}
+
+void VtkViewer::resetCamera() {
+    if (renderer_) renderer_->ResetCamera();
+    if (window_) window_->Render();
+}
+
+void VtkViewer::render() {
+    if (window_) window_->Render();
 }
 
 void VtkViewer::start(bool openWindow) {

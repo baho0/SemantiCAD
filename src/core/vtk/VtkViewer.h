@@ -43,6 +43,19 @@ public:
     // and for running where there is no display).
     void start(bool openWindow);
 
+    // --- Embedding API (used by the Qt UI) -------------------------------
+    // Attach the viewer's renderer to an externally owned render window (e.g.
+    // the one created by Qt's QVTKOpenGLNativeWidget), then frame and render.
+    // The viewer does not take exclusive ownership: the host widget keeps the
+    // window alive. Commands and re-loads render into this window automatically.
+    void setRenderWindow(vtkRenderWindow* window);
+
+    // Frame the current object in the camera, then render.
+    void resetCamera();
+
+    // Request a redraw (no-op when not attached to any window).
+    void render();
+
 private:
     void onCommand(const core::CommandEvent& event);
 
