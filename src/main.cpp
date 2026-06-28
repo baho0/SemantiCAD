@@ -15,7 +15,19 @@
 #include <vtkSmartPointer.h>
 #endif
 
+#ifdef SEMANTICAD_HAS_GUI
+#include "ui/MainWindow.h"
+
+#include <QVTKOpenGLNativeWidget.h>
+
+#include <QApplication>
+#include <QString>
+#include <QSurfaceFormat>
+#endif
+
 namespace {
+
+const char* kDefaultModel = "models/Qwen2.5-3B-Instruct-Q4_K_M.gguf";
 
 void printBounds(const char* label, const double b[6]) {
     std::cout << "[SemantiCAD] " << label << ": x[" << b[0] << ", " << b[1] << "] y["
@@ -29,35 +41,34 @@ semanticad::core::CommandEvent toEvent(const nlohmann::ordered_json& envelope) {
         envelope.contains("params") ? envelope["params"] : nlohmann::ordered_json::object()};
 }
 
-}  // namespace
+#ifdef SEMANTICAD_HAS_GUI
+// Default mode: the Qt desktop UI (VTK viewport + chat). An optional --object
+// is preloaded and an optional natural-language instruction is auto-run once the
+// model finishes loading.
+int runGui(int argc, char** argv, const std::string& commandsDir,
+           const std::string& objectPath, const std::string& instruction) {
+    // Must be set before any OpenGL context / QVTKOpenGLNativeWidget is created.
+    QSurfaceFormat::setDefaultFormat(QVTKOpenGLNativeWidget::defaultFormat());
 
-int main(int argc, char** argv) {
-    // CLI:
-    //   --object <file>     3D model to load into VTK (.stl/.obj/.ply/.vtp)
-    //   --commands <dir>    command-definition directory (default: commands)
-    //   --apply <json>      apply a {"command":..,"params":..} envelope directly
-    //                       (bypasses the model — handy for testing/scripting)
-    //   --no-window         headless: do not open a render window
-    //   <rest...>           natural-language instruction for the NLP layer
-    std::string commandsDir = "commands";
-    std::string objectPath;
-    std::string applyJson;
-    bool openWindow = true;
-    std::vector<std::string> rest;
-    for (int i = 1; i < argc; ++i) {
-        const std::string a = argv[i];
-        if (a == "--commands" && i + 1 < argc) commandsDir = argv[++i];
-        else if (a == "--object" && i + 1 < argc) objectPath = argv[++i];
-        else if (a == "--apply" && i + 1 < argc) applyJson = argv[++i];
-        else if (a == "--no-window") openWindow = false;
-        else rest.push_back(a);
-    }
-    std::string instruction;
-    for (const auto& s : rest) {
-        if (!instruction.empty()) instruction += ' ';
-        instruction += s;
-    }
+    QApplication app(argc, argv);
+    app.setApplicationName(QStringLiteral("SemantiCAD"));
+    app.setApplicationDisplayName(QStringLiteral("SemantiCAD"));
 
+    semanticad::ui::MainWindow window(QString::fromUtf8(kDefaultModel),
+                                      QString::fromStdString(commandsDir));
+    if (!objectPath.empty()) window.openFile(QString::fromStdString(objectPath));
+    if (!instruction.empty()) window.queuePrompt(QString::fromStdString(instruction));
+    window.show();
+    return app.exec();
+}
+#endif
+
+// Headless / no-GUI-build mode: drives the scene without Qt. Used for scripting
+// and automated verification (--no-window, --apply) and as the fallback when the
+// GUI is not compiled in.
+int runHeadless(const std::string& commandsDir, [[maybe_unused]] const std::string& objectPath,
+                const std::string& applyJson, const std::string& instruction,
+                [[maybe_unused]] bool openWindow) {
     semanticad::core::EventBus bus;
 
 #ifdef SEMANTICAD_HAS_VTK
@@ -95,7 +106,7 @@ int main(int argc, char** argv) {
         }
     } else if (!instruction.empty()) {
         std::cout << "[SemantiCAD] NLP katmani baslatiliyor..." << std::endl;
-        semanticad::nlp::SemanticIO io("models/Qwen2.5-3B-Instruct-Q4_K_M.gguf", commandsDir);
+        semanticad::nlp::SemanticIO io(kDefaultModel, commandsDir);
 
         const auto& report = io.commandLoadReport();
         std::cout << "[SemantiCAD] Yuklenen komutlar (" << report.loaded.size() << "): ";
@@ -125,4 +136,44 @@ int main(int argc, char** argv) {
 #endif
 
     return 0;
+}
+
+}  // namespace
+
+int main(int argc, char** argv) {
+    // CLI:
+    //   (no args)           launch the Qt desktop UI (default)
+    //   --object <file>     3D model to load (.stl/.obj/.ply/.vtp)
+    //   --commands <dir>    command-definition directory (default: commands)
+    //   --no-window         headless: no UI/window (scripting / CI)
+    //   --apply <json>      apply a {"command":..,"params":..} envelope directly
+    //                       (headless; bypasses the model)
+    //   <rest...>           natural-language instruction (auto-run in the UI, or
+    //                       run once headless with --no-window)
+    std::string commandsDir = "commands";
+    std::string objectPath;
+    std::string applyJson;
+    bool openWindow = true;
+    std::vector<std::string> rest;
+    for (int i = 1; i < argc; ++i) {
+        const std::string a = argv[i];
+        if (a == "--commands" && i + 1 < argc) commandsDir = argv[++i];
+        else if (a == "--object" && i + 1 < argc) objectPath = argv[++i];
+        else if (a == "--apply" && i + 1 < argc) applyJson = argv[++i];
+        else if (a == "--no-window") openWindow = false;
+        else rest.push_back(a);
+    }
+    std::string instruction;
+    for (const auto& s : rest) {
+        if (!instruction.empty()) instruction += ' ';
+        instruction += s;
+    }
+
+#ifdef SEMANTICAD_HAS_GUI
+    // The GUI is the default; --no-window (or --apply) drops to headless.
+    if (openWindow && applyJson.empty())
+        return runGui(argc, argv, commandsDir, objectPath, instruction);
+#endif
+
+    return runHeadless(commandsDir, objectPath, applyJson, instruction, openWindow);
 }

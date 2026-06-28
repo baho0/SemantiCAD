@@ -111,9 +111,38 @@ if(SEMANTICAD_USE_VTK)
     )
     target_link_libraries(semanticad PRIVATE ${SEMANTICAD_VTK_LIBRARIES} semanticad_command)
     target_compile_definitions(semanticad PRIVATE SEMANTICAD_HAS_VTK)
-    # Required so VTK's object factories (OpenGL2 render window, interactor
-    # styles, ...) self-register at startup.
-    vtk_module_autoinit(TARGETS semanticad MODULES ${SEMANTICAD_VTK_LIBRARIES})
+
+    # --- Qt desktop UI, folded into the single `semanticad` executable -----
+    # There is exactly one program: `semanticad`. By default it launches a
+    # QMainWindow with a 70/30 horizontal split — VTK viewport (embedded via
+    # QVTKOpenGLNativeWidget from VTK's GUISupportQt module) on the left, a chat
+    # panel on the right. The NLP pipeline runs on a worker thread; the GUI
+    # thread owns the EventBus + viewer, just like the headless composition.
+    # `--no-window` / `--apply` drop to the Qt-free headless path for CI.
+    #
+    # GUISupportQt requires a Qt-enabled VTK. The CUDA-bundled VTK in /opt/cuda
+    # lacks it, so configure with a Qt VTK, e.g.:
+    #   cmake -B build -DVTK_DIR=/usr/lib/cmake/vtk
+    # (Set -DSEMANTICAD_BUILD_GUI=OFF for a headless-only build without Qt.)
+    if(SEMANTICAD_BUILD_GUI)
+        find_package(Qt6 REQUIRED COMPONENTS Widgets)
+        find_package(VTK 9 REQUIRED COMPONENTS GUISupportQt)
+        message(STATUS "--- SemantiCAD: Qt ${Qt6_VERSION} GUI etkin ---")
+
+        set_target_properties(semanticad PROPERTIES AUTOMOC ON)
+        target_sources(semanticad PRIVATE
+            src/ui/MainWindow.cpp
+            src/ui/ChatPanel.cpp
+            src/ui/InferenceWorker.cpp
+        )
+        target_link_libraries(semanticad PRIVATE VTK::GUISupportQt Qt6::Widgets)
+        target_compile_definitions(semanticad PRIVATE SEMANTICAD_HAS_GUI)
+        # Self-register VTK object factories (incl. the Qt OpenGL widget) at startup.
+        vtk_module_autoinit(TARGETS semanticad
+            MODULES ${SEMANTICAD_VTK_LIBRARIES} VTK::GUISupportQt)
+    else()
+        vtk_module_autoinit(TARGETS semanticad MODULES ${SEMANTICAD_VTK_LIBRARIES})
+    endif()
 
     # --- Unit tests (command layer) ---------------------------------------
     # Commands run against a real (but tiny) vtkPolyData through CadObject — no
@@ -138,45 +167,5 @@ if(SEMANTICAD_USE_VTK)
         )
         include(GoogleTest)
         gtest_discover_tests(semanticad_tests)
-    endif()
-
-    # --- Qt desktop UI (semanticad_gui) -----------------------------------
-    # A QMainWindow with a 70/30 horizontal split: VTK viewport (embedded via
-    # QVTKOpenGLNativeWidget from VTK's GUISupportQt module) on the left, a chat
-    # panel on the right. The NLP pipeline runs on a worker thread; the GUI
-    # thread owns the EventBus + viewer, exactly like main.cpp's composition.
-    #
-    # GUISupportQt requires a Qt-enabled VTK. The CUDA-bundled VTK in /opt/cuda
-    # lacks it, so configure with a Qt VTK, e.g.:
-    #   cmake -B build -DVTK_DIR=/usr/lib/cmake/vtk
-    if(SEMANTICAD_BUILD_GUI)
-        find_package(Qt6 REQUIRED COMPONENTS Widgets)
-        find_package(VTK 9 REQUIRED COMPONENTS GUISupportQt)
-        message(STATUS "--- SemantiCAD: Qt ${Qt6_VERSION} GUI etkin ---")
-
-        add_executable(semanticad_gui
-            src/ui/main_gui.cpp
-            src/ui/MainWindow.cpp
-            src/ui/ChatPanel.cpp
-            src/ui/InferenceWorker.cpp
-            src/core/vtk/VtkViewer.cpp
-            src/infrastructure/MeshLoader.cpp
-            ${SEMANTICAD_NLP_SOURCES}
-        )
-        set_target_properties(semanticad_gui PROPERTIES AUTOMOC ON)
-        target_include_directories(semanticad_gui PRIVATE src src/core/NLP)
-        target_link_libraries(semanticad_gui PRIVATE
-            llama ggml llama-common
-            semanticad_command
-            ${SEMANTICAD_VTK_LIBRARIES}
-            VTK::GUISupportQt
-            Qt6::Widgets
-        )
-        target_compile_definitions(semanticad_gui PRIVATE
-            SEMANTICAD_HAS_VTK
-            $<$<CONFIG:Debug>:ENABLE_DEBUG_LOG>
-        )
-        vtk_module_autoinit(TARGETS semanticad_gui
-            MODULES ${SEMANTICAD_VTK_LIBRARIES} VTK::GUISupportQt)
     endif()
 endif()

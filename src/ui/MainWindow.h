@@ -35,6 +35,10 @@ public:
     // Load a mesh into the viewport (used at startup for an optional CLI object).
     void openFile(const QString& path);
 
+    // Queue an instruction (e.g. from the command line) to be run in the chat as
+    // soon as the model finishes loading.
+    void queuePrompt(const QString& text);
+
 signals:
     void requestProcess(const QString& text);  // GUI thread -> worker thread
 
@@ -59,6 +63,7 @@ private:
 
     bool modelReady_ = false;
     QString currentFile_;
+    QString pendingPrompt_;  // CLI instruction awaiting model readiness
 };
 
 }  // namespace semanticad::ui

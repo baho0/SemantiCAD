@@ -90,6 +90,16 @@ void MainWindow::openFile(const QString& path) {
     chat_->addSystemMessage(QStringLiteral("Yüklendi: %1").arg(name));
 }
 
+void MainWindow::queuePrompt(const QString& text) {
+    pendingPrompt_ = text.trimmed();
+    // If the model is already ready, run it now; otherwise it fires on ready.
+    if (modelReady_ && !pendingPrompt_.isEmpty()) {
+        const QString p = pendingPrompt_;
+        pendingPrompt_.clear();
+        onUserMessage(p);
+    }
+}
+
 void MainWindow::onOpenFileRequested() {
     const QString path = QFileDialog::getOpenFileName(
         this, QStringLiteral("3B model aç"), currentFile_,
@@ -116,6 +126,13 @@ void MainWindow::onWorkerStatus(const QString& message, int level) {
     chat_->setInputEnabled(modelReady_);
     if (status == ChatPanel::Status::Error)
         chat_->addSystemMessage(message);
+
+    // A CLI-supplied instruction waits here until the model is ready.
+    if (modelReady_ && !pendingPrompt_.isEmpty()) {
+        const QString p = pendingPrompt_;
+        pendingPrompt_.clear();
+        onUserMessage(p);
+    }
 }
 
 void MainWindow::onWorkerResult(bool ok, const QString& command, const QString& paramsJson,
